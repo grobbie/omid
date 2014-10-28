@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
@@ -86,7 +87,7 @@ public class Compacter extends BaseRegionObserver {
       System.out.println("Compacter stopped");
    }
 
-   @Override
+  /* @Override
    public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> e, Store store,
          InternalScanner scanner) {
       if (e.getEnvironment().getRegion().getRegionInfo().isMetaTable()) {
@@ -94,7 +95,7 @@ public class Compacter extends BaseRegionObserver {
       } else {
          return new CompacterScanner(scanner, minTimestamp);
       }
-   }
+   } */
    
    private static class CompacterScanner implements InternalScanner {
       private InternalScanner internalScanner;
@@ -109,14 +110,14 @@ public class Compacter extends BaseRegionObserver {
       }
 
       @Override
-      public boolean next(List<KeyValue> results) throws IOException {
+      public boolean next(List<Cell> results) throws IOException {
          return next(results, -1);
       }
 
       @Override
-      public boolean next(List<KeyValue> result, int limit) throws IOException {
+      public boolean next(List<Cell> result, int limit) throws IOException {
          boolean moreRows = false;
-         List<KeyValue> raw = new ArrayList<KeyValue>(limit);
+         List<Cell> raw = new ArrayList<Cell>(limit);
          while (limit == -1 || result.size() < limit) {
             int toReceive = limit == -1 ? -1 : limit - result.size();
             moreRows = internalScanner.next(raw, toReceive);
@@ -127,7 +128,7 @@ public class Compacter extends BaseRegionObserver {
                   lastRowId = currentRowId;
                }
             }
-            for (KeyValue kv : raw) {
+            for (Cell kv : raw) {
                ColumnWrapper column = new ColumnWrapper(kv.getFamily(), kv.getQualifier());
                if (columnsSeen.add(column) || kv.getTimestamp() > minTimestamp) {
                   result.add(kv);
@@ -147,21 +148,9 @@ public class Compacter extends BaseRegionObserver {
          return moreRows;
       }
 
-      @Override
+       @Override
       public void close() throws IOException {
          internalScanner.close();
-      }
-
-      @Override
-      public boolean next(List<KeyValue> results, String metric)
-            throws IOException {
-         return next(results);
-      }
-
-      @Override
-      public boolean next(List<KeyValue> result, int limit, String metric)
-            throws IOException {
-         return next(result, limit);
       }
 
    }
@@ -179,3 +168,4 @@ public class Compacter extends BaseRegionObserver {
       }
    }
 }
+
